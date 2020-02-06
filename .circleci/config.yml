@@ -1,50 +1,24 @@
 version: 2
 jobs:
-    build:
-      docker:
-      - image: $BUILD_CONTAINER_IMAGE
-        auth:
-          username: _json_key
-          # This was a key generated in gcloud's bluecore-qa IAM console for circle-ci-image-retrieval@bluecore-qa.iam.gserviceaccount.com
-          # this service-account has read access to bluecore-qa: artifacts.bluecore-qa.appspot.com where images are stored.
-          password: $GCR_TM_AUTH
-      working_directory: /home/circleci/go/src/github.com/TriggerMail/<repo>
-      steps:
-        - checkout
-        - run:
-            name: Export PATH for Deployment
-            command: |
-              /home/circleci/devenv/bluecore activate >> $BASH_ENV
-              echo "GOPATH=/home/circleci/go" >> $BASH_ENV
-        - run:
-            name: Find formatting issues
-            command: go vet ./...
-        - run:
-            name: Run tests
-            # Runs each test 10 times to try to avoid flaky tests or depending on map ordering
-            command: go test -race -count=10 ./...
-        - run:
-            name: Check code is formatted with gofmt
-            command: |
-              go fmt ./...
-              CHANGED=$(git status --porcelain --untracked-files=no)
-              if [ -n "${CHANGED}" ]; then
-                  echo "ERROR Go files must be formatted with go fmt; Format these files:" > /dev/stderr
-                  echo "$CHANGED" > /dev/stderr
-                  exit 10
-              fi
-        - run:
-            name: Upload image
-            command: |
-              if [ $CIRCLE_BRANCH == "master" ]; then
-                echo $GCR_TM_AUTH > ${HOME}/gcloud-service-key.json
-                gcloud auth activate-service-account --key-file=${HOME}/gcloud-service-key.json
-                bluecore cloudbuild . --config cloudbuilder.yaml --service-name customers --tag $CIRCLE_SHA1 --gcloud-key-path $HOME/gcloud-service-key.json
-              fi
-
-workflows:
-  version: 2
-  build_and_test:
-    jobs:
-      - build:
-          context: build-global
+  build:
+    working_directory: ~/hackathon-counters
+    docker:
+      - image: python:2.7-stretch # every job must define an image for the docker executor and subsequent jobs may define a different image.
+        environment:
+          PIPENV_VENV_IN_PROJECT: true
+          DATABASE_URL: postgresql+pg8000://postgres:@localhost/test
+          CLOUDSDK_CORE_DISABLE_PROMPTS: 1
+          DEBIAN_FRONTEND: noninteractive
+      - image: circleci/postgres:9.6.2 # an example of how to specify a service container
+        environment:
+          POSTGRES_USER: root
+          POSTGRES_DB: circle_test
+  steps:
+      - checkout  # checkout source code to working directory
+      - run:
+          command: |  # use pipenv to install dependencies
+            sudo pip install pipenv
+            pipenv install
+      - run:
+          command: |
+            pipenv run python manage.py test
