@@ -28,8 +28,9 @@ jobs:
           name: Build Docker image
           command: |
             docker build -t app .
+
       - run: |
-          echo $TRIGGERMAIL_GCR_AUTH > gcr_key.json
+          echo $GCLOUD_ACCOUNT_CRED > gcr_key.json
           cat gcr_key.json | docker login -u _json_key --password-stdin https://us.gcr.io
 
       - run: |
