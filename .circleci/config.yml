@@ -1,24 +1,10 @@
 version: 2
 jobs:
   build:
-    working_directory: ~/hackathon-counters
     docker:
-      - image: python:2.7-stretch # every job must define an image for the docker executor and subsequent jobs may define a different image.
-        environment:
-          PIPENV_VENV_IN_PROJECT: true
-          DATABASE_URL: postgresql+pg8000://postgres:@localhost/test
-          CLOUDSDK_CORE_DISABLE_PROMPTS: 1
-          DEBIAN_FRONTEND: noninteractive
-      - image: circleci/postgres:9.6.2 # an example of how to specify a service container
-        environment:
-          POSTGRES_USER: root
-          POSTGRES_DB: circle_test
-  steps:
-      - checkout  # checkout source code to working directory
-      - run:
-          command: |  # use pipenv to install dependencies
-            sudo pip install pipenv
-            pipenv install
-      - run:
-          command: |
-            pipenv run python manage.py test
+      - image: circleci/python:3.6.2-stretch-browsers
+    environment:
+      DATABASE_URL: postgresql+pg8000://postgres:@localhost/test
+      # Disable any of the interactive prompts
+      CLOUDSDK_CORE_DISABLE_PROMPTS: 1
+      DEBIAN_FRONTEND: noninteractive
