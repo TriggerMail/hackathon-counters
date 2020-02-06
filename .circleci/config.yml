@@ -38,12 +38,9 @@ jobs:
           echo 'Pushing the docker images ...'
           echo '---'
           export IMAGE_VERSION_TAG=us.gcr.io/triggeredmail/hackathon-counters:stable-v${CIRCLE_BUILD_NUM}
-          export IMAGE_BASE_TAG=us.gcr.io/triggeredmail/hackathon-counters:beta
-
-          echo "IMAGE_BASE_TAG = ${IMAGE_BASE_TAG}"
 
           docker push "${IMAGE_VERSION_TAG}"        > /dev/null
-          docker push "${IMAGE_BASE_TAG}"           > /dev/null
+          # docker push "${IMAGE_BASE_TAG}"           > /dev/null
 
       # Install but don't authenticate the Google Cloud tools
       - gcp-cli/install
