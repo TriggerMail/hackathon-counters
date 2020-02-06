@@ -1,0 +1,51 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: hackathon-counters-service
+  labels:
+    app: hackathon-counters-service
+spec:
+  # Required for Container Engine Ingress:
+  # https://github.com/kubernetes/ingress/tree/master/controllers/gce
+  type: NodePort
+  ports:
+    - port: 8080
+      name: http
+  selector:
+    app: <service name>
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: <service name>
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: hackathon-counters-service
+    spec:
+      containers:
+      - name: hackathon-counters-service
+        image: {{IMAGE}}
+        env:
+        - name: PRPC_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: prpc-token
+              key: token
+        ports:
+        - containerPort: 8080
+          name: http
+        resources:
+          requests:
+            cpu: 0.25
+            memory: 256Mi
+          limits:
+            memory: 0.25Gi
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 1000
+          capabilities:
+            drop:
+            - all

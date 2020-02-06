@@ -1,0 +1,16 @@
+steps:
+- name: 'gcr.io/cloud-builders/docker'
+# Use substitute variables to pass in docker tags, repo, and service
+# https://cloud.google.com/container-builder/docs/configuring-builds/substitute-variable-values
+# Note that PIP_EXTRA_INDEX_URL is not needed for go builds, but in order
+# for it to work with the cloudbuil tool, we need to include it
+  args: ['build', '-t', '$_REPO/$PROJECT_ID/$_DOCKER_TAG_DATE_COMMIT', '--build-arg', 'PIP_EXTRA_INDEX_URL=$_PIP_EXTRA_INDEX_URL', '.', ]
+  # image is pushed is pushed to Container Registry
+- name: 'gcr.io/cloud-builders/docker'
+  args: ['push', '$_REPO/$PROJECT_ID/$_SERVICE']
+- name: 'gcr.io/cloud-builders/gcloud'
+  args: ['container', 'images', 'add-tag', '$_REPO/$PROJECT_ID/$_DOCKER_TAG_DATE_COMMIT', '$_REPO/$PROJECT_ID/$_DOCKER_TAG_COMMIT', '-q']
+# To avoid giving general 'Viewer' permission to the service account that builds the image
+# we create a storage bucket and manage permissions on that storage bucket
+# https://github.com/GoogleCloudPlatform/cloud-builders/issues/120
+logsBucket: 'gs://container_build_logs_tm'
