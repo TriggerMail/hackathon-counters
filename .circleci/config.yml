@@ -37,11 +37,10 @@ jobs:
           echo '---'
           echo 'Pushing the docker images ...'
           echo '---'
-          export IMAGE_VERSION_TAG=us.gcr.io/triggeredmail/hackathon-counters:stable-v${CIRCLE_BUILD_NUM}
 
-          docker push "${IMAGE_VERSION_TAG}"        > /dev/null
-          # docker push "${IMAGE_BASE_TAG}"           > /dev/null
-
+          echo $GCLOUD_ACCOUNT_CRED > ${HOME}/gcloud-service-key.json
+          gcloud auth activate-service-account --key-file=${HOME}/gcloud-service-key.json
+          bluecore cloudbuild . --config cloudbuilder.yaml --service-name rate-limiter --tag $CIRCLE_SHA1 --gcloud-key-path $HOME/gcloud-service-key.json
       # Install but don't authenticate the Google Cloud tools
       - gcp-cli/install
       - gcp-cli/initialize:
