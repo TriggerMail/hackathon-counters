@@ -37,6 +37,9 @@ jobs:
           echo '---'
           echo 'Pushing the docker images ...'
           echo '---'
+          export IMAGE_VERSION_TAG=us.gcr.io/triggeredmail/hackathon-counters:stable-v${CIRCLE_BUILD_NUM}
+          docker tag "${IMAGE_VERSION_TAG}"        "${IMAGE_BASE_TAG}"
+
           docker push "${IMAGE_VERSION_TAG}"        > /dev/null
           docker push "${IMAGE_BASE_TAG}"           > /dev/null
 
