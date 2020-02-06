@@ -12,6 +12,8 @@ jobs:
           # Disable any of the interactive prompts
           CLOUDSDK_CORE_DISABLE_PROMPTS: 1
           DEBIAN_FRONTEND: noninteractive
+          GOOGLE_COMPUTE_ZONE: us-central1-a
+          GOOGLE_PROJECT_ID: triggeredmail
     steps:
       - checkout
 
