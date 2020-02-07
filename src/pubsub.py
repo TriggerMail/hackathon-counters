@@ -1,5 +1,7 @@
 #autoformat
-
+import random
+import logging
+from bluecore import bluecore_redis
 from google.api_core import exceptions
 from google.cloud import pubsub_v1
 from flask import Flask  # import flask
@@ -8,11 +10,61 @@ import webapp2
 PROJECT_ID = "bluecore-qa"
 
 
+class MasterNotFoundError(object):
+    pass
+
+
+class Redis:
+    SERAPIAN_METADATA_COLLECTION_NAME = 'serapian_metadata_run'
+    SERAPIAN_METADATA_SCHEMA_NAME = 'serapian_metadata_run'
+    REDIS_SERAPIAN_METADATA_COLLECTION_NAME = 'redis_serapian_metadata_run'
+    REDIS_SERAPIAN_METADATA_SCHEMA_NAME = 'redis_serapian_metadata_run'
+    REDIS_OPERATIONS_SHARD_COUNT = 40
+    REDIS_OPERATIONS_QUEUE_NAMES = [
+        'redis-operations-%s' % i for i in range(REDIS_OPERATIONS_SHARD_COUNT)
+    ]
+
+    def __init__(self):
+        self.instance = None
+
+    def validate(self):
+        self.instance = bluecore_redis.get_bluecore_redis_instance()
+
+    @property
+    def queue_name(self):
+        return random.choice(self.REDIS_OPERATIONS_QUEUE_NAMES)
+
+    def _update_count(self, redis_key, delta):
+        try:
+            self.instance.incr(redis_key, amount=delta)
+            # set expiration only before we send data to bigquery
+            # self.instance.expire(key, 100000)
+        except MasterNotFoundError:
+            logging.exception(
+                u"Could not acquire redis master instance to increment redis key {}; rescheduling"
+                .format(redis_key)
+            )
+            """
+            reschedule here 
+            countdown = float(random.randint(0, self.RESCHEDULE_DELAY))
+            self.schedule(countdown=countdown)
+            """
+        except Exception:
+            logging.exception(u'Could not increment redis key {}'.format(redis_key))
+            raise
+
+    def update(self, counters):
+        for k, v in counters:
+            self._update_count(k, v)
+
+
 class Counter:
     BATCH_SIZE = 10
 
-    def __init__(self):
+    def __init__(self, pull_manager):
         self.counters = dict()
+        self.pull_manager = pull_manager
+        self.redis_instance = Redis()
 
     def increment(self, message):
         # used in callback
@@ -24,10 +76,10 @@ class Counter:
         else:
             self.counters[key] = 1
 
+        self.pull_manager.messages.append(message)
         message.ack()
-        self._update_redis(key)
-        print 'incremented counters for namespace {} and key {}: {}'.format(
-            namespace, key, self.counters)
+        self._update_redis()
+        print 'incremented counters for namespace {} and key {}: {}'.format(namespace, key, self.counters)
 
     def batch_increment(self, received_messages):
         # can be used when using PullManager.pull
@@ -44,7 +96,7 @@ class Counter:
             print 'incremented counters for namespace {} and key {}: {}'.format(
                 namespace, key, self.counters)
 
-    def reset_counters(self):
+    def _reset_counters(self):
         # call after redis updated
         self.counters = dict()
 
@@ -52,10 +104,10 @@ class Counter:
         if key in self.counters:
             self.counters[key] = 0
 
-    def _update_redis(self, key):
-        if self.counters[key] >= self.BATCH_SIZE:
-            self._reset_counter(key)
-            # update redis
+    def _update_redis(self):
+        if len(self.pull_manager.messages) % self.BATCH_SIZE == 0:
+            self.redis_instance.update(self.counters)
+            self._reset_counters()
 
 
 class PullManager:
