@@ -26,6 +26,3 @@ try:
 except Exception as e:  # noqa
     print("{}".format(e))
     sys.exit()
-
-if __name__ == '__main__':
-    can_send_now()

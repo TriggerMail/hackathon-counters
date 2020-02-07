@@ -2,6 +2,7 @@
 
 from google.api_core import exceptions
 from google.cloud import pubsub_v1
+import webapp2
 
 PROJECT_ID = "bluecore-qa"
 
@@ -116,5 +117,11 @@ def run():
     manager.listen()
 
 
-if __name__ == '__main__':
-    run()
+class HelloWebapp2(webapp2.RequestHandler):
+    def get(self):
+        self.response.write('Hello, webapp2!')
+
+
+app = webapp2.WSGIApplication([
+    ('/', HelloWebapp2),
+], debug=True)
