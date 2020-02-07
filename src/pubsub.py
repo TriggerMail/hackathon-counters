@@ -12,7 +12,7 @@ class MasterNotFoundError(object):
     pass
 
 
-class Redis:
+class RedisInstance:
     SERAPIAN_METADATA_COLLECTION_NAME = 'serapian_metadata_run'
     SERAPIAN_METADATA_SCHEMA_NAME = 'serapian_metadata_run'
     REDIS_SERAPIAN_METADATA_COLLECTION_NAME = 'redis_serapian_metadata_run'
@@ -23,11 +23,11 @@ class Redis:
     ]
 
     def __init__(self):
-        self.instance = None
+        self.instance = redis.Redis(host='localhost', port=6379, db=0)
 
     def validate(self):
         # self.instance = bluecore_redis.get_bluecore_redis_instance()
-        self.instance = redis.Redis(host='localhost', port=6379, db=0)
+        return
 
     @property
     def queue_name(self):
@@ -35,21 +35,12 @@ class Redis:
 
     def _update_count(self, redis_key, delta):
         try:
-            self.instance.incr(redis_key, amount=delta)
+            if self.instance:
+                self.instance.incr(redis_key, amount=delta)
+                logging.info("incremented redis for key {} and delta {}".format(redis_key, delta))
             # set expiration only before we send data to bigquery
             # self.instance.expire(key, 100000)
             # send to bq here
-            print self.instance.keys(), self.instance.values()
-        except MasterNotFoundError:
-            logging.exception(
-                u"Could not acquire redis master instance to increment redis key {}; rescheduling"
-                .format(redis_key)
-            )
-            """
-            reschedule here 
-            countdown = float(random.randint(0, self.RESCHEDULE_DELAY))
-            self.schedule(countdown=countdown)
-            """
         except Exception:
             logging.exception(u'Could not increment redis key {}'.format(redis_key))
             raise
@@ -60,12 +51,12 @@ class Redis:
 
 
 class Counter:
-    BATCH_SIZE = 3
+    BATCH_SIZE = 10
 
     def __init__(self, pull_manager):
         self.counters = dict()
         self.pull_manager = pull_manager
-        self.redis_instance = Redis()
+        self.redis_instance = RedisInstance()
 
     def increment(self, message):
         # used in callback
@@ -126,8 +117,6 @@ class PullManager:
         return self.future
 
     def listen(self):
-        import pdb
-        pdb.set_trace()
         print("Listening for messages on {}..\n".format(
             self.subscription_path))
         try:
