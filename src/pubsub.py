@@ -4,6 +4,7 @@ import logging
 from bluecore import bluecore_redis
 from google.api_core import exceptions
 from google.cloud import pubsub_v1
+import webapp2
 
 PROJECT_ID = "bluecore-qa"
 
@@ -91,8 +92,8 @@ class Counter:
             else:
                 self.counters[key] = 1
             message.ack()
-            print 'incremented counters for namespace {} and key {}: {}'.format(namespace, key,
-                                                                                self.counters)
+            print 'incremented counters for namespace {} and key {}: {}'.format(
+                namespace, key, self.counters)
 
     def _reset_counters(self):
         # call after redis updated
@@ -117,14 +118,14 @@ class PullManager:
         self.messages = []
 
     def open(self, callback):
-        self.future = self.client.subscribe(
-            self.subscription_path, callback=callback
-        )
+        self.future = self.client.subscribe(self.subscription_path,
+                                            callback=callback)
 
         return self.future
 
     def listen(self):
-        print("Listening for messages on {}..\n".format(self.subscription_path))
+        print("Listening for messages on {}..\n".format(
+            self.subscription_path))
         try:
             self.future.result(timeout=2000)
         except:
@@ -135,11 +136,9 @@ class PullManager:
 
     def pull(self):
         try:
-            response = self.client.pull(
-                subscription=self.subscription_path,
-                max_messages=self.max_messages,
-                return_immediately=True
-            )
+            response = self.client.pull(subscription=self.subscription_path,
+                                        max_messages=self.max_messages,
+                                        return_immediately=True)
             messages = response.received_messages
             self.messages += messages
         except exceptions.DeadlineExceeded:
@@ -156,17 +155,25 @@ class PullManager:
 
 class Subscriber(pubsub_v1.SubscriberClient):
     def subscribe_to_topic(self, subscription_path):
-        manager = PullManager(
-            client=self,
-            subscription_path=subscription_path
-        )
+        manager = PullManager(client=self, subscription_path=subscription_path)
 
         return manager
 
 
-subscriber = Subscriber()
-subscription_path = subscriber.subscription_path(PROJECT_ID, "hackathon")
-manager = subscriber.subscribe_to_topic(subscription_path)
-counter = Counter(manager)
-future = manager.open(counter.increment)
-manager.listen()
+def run():
+    subscriber = Subscriber()
+    counter = Counter()
+    subscription_path = subscriber.subscription_path(PROJECT_ID, "hackathon")
+    manager = subscriber.subscribe_to_topic(subscription_path)
+    future = manager.open(counter.increment)
+    manager.listen()
+
+
+class HelloWebapp2(webapp2.RequestHandler):
+    def get(self):
+        self.response.write('Hello, webapp2!')
+
+
+app = webapp2.WSGIApplication([
+    ('/', HelloWebapp2),
+], debug=True)

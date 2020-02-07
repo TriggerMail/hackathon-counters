@@ -12,12 +12,12 @@ spec:
     - port: 8080
       name: http
   selector:
-    app: <service name>
+    app: hackathon-counters-service
 ---
 apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
-  name: <service name>
+  name: hackathon-counters-service
 spec:
   replicas: 1
   template:
@@ -27,7 +27,7 @@ spec:
     spec:
       containers:
       - name: hackathon-counters-service
-        image: {{IMAGE}}
+        image: us.gcr.io/triggeredmail/hackathon-counters:27
         env:
         - name: PRPC_TOKEN
           valueFrom:
