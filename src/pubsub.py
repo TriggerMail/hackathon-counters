@@ -7,6 +7,8 @@ PROJECT_ID = "bluecore-qa"
 
 
 class Counter:
+    BATCH_SIZE = 10
+
     def __init__(self):
         self.counters = dict()
 
@@ -21,6 +23,7 @@ class Counter:
             self.counters[key] = 1
 
         message.ack()
+        self._update_redis(key)
         print 'incremented counters for namespace {} and key {}: {}'.format(namespace, key, self.counters)
 
     def batch_increment(self, received_messages):
@@ -42,6 +45,15 @@ class Counter:
         # call after redis updated
         self.counters = dict()
 
+    def _reset_counter(self, key):
+        if key in self.counters:
+            self.counters[key] = 0
+
+    def _update_redis(self, key):
+        if self.counters[key] >= self.BATCH_SIZE:
+            self._reset_counter(key)
+            # update redis
+
 
 class PullManager:
     def __init__(self, client, subscription_path):
@@ -55,9 +67,18 @@ class PullManager:
         self.future = self.client.subscribe(
             self.subscription_path, callback=callback
         )
-        print("Listening for messages on {}..\n".format(self.subscription_path))
 
         return self.future
+
+    def listen(self):
+        print("Listening for messages on {}..\n".format(self.subscription_path))
+        try:
+            self.future.result(timeout=2000)
+        except:
+            self.future.cancel()
+
+    def close(self):
+        self.future.cancel()
 
     def pull(self):
         try:
@@ -94,17 +115,7 @@ subscriber = Subscriber()
 counter = Counter()
 
 
-def callback(message):
-    counter.increment(message)
-
-
 subscription_path = subscriber.subscription_path(PROJECT_ID, "hackathon")
 manager = subscriber.subscribe_to_topic(subscription_path)
-future = manager.open(callback)
-
-try:
-    # messages = manager.pull()
-    # counter.batch_increment(messages)
-    future.result(timeout=200)
-except:  # noqa
-    future.cancel()
+future = manager.open(counter.increment)
+manager.listen()
