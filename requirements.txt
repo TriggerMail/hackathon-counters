@@ -1,2 +1,2 @@
-bluecore-core==2.1.50
-redis==2.10.5
+bluecore-core
+redis
