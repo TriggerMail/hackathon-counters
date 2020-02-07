@@ -24,7 +24,8 @@ class Counter:
 
         message.ack()
         self._update_redis(key)
-        print 'incremented counters for namespace {} and key {}: {}'.format(namespace, key, self.counters)
+        print 'incremented counters for namespace {} and key {}: {}'.format(
+            namespace, key, self.counters)
 
     def batch_increment(self, received_messages):
         # can be used when using PullManager.pull
@@ -38,8 +39,8 @@ class Counter:
             else:
                 self.counters[key] = 1
             message.ack()
-            print 'incremented counters for namespace {} and key {}: {}'.format(namespace, key,
-                                                                                self.counters)
+            print 'incremented counters for namespace {} and key {}: {}'.format(
+                namespace, key, self.counters)
 
     def reset_counters(self):
         # call after redis updated
@@ -64,14 +65,14 @@ class PullManager:
         self.messages = []
 
     def open(self, callback):
-        self.future = self.client.subscribe(
-            self.subscription_path, callback=callback
-        )
+        self.future = self.client.subscribe(self.subscription_path,
+                                            callback=callback)
 
         return self.future
 
     def listen(self):
-        print("Listening for messages on {}..\n".format(self.subscription_path))
+        print("Listening for messages on {}..\n".format(
+            self.subscription_path))
         try:
             self.future.result(timeout=2000)
         except:
@@ -82,11 +83,9 @@ class PullManager:
 
     def pull(self):
         try:
-            response = self.client.pull(
-                subscription=self.subscription_path,
-                max_messages=self.max_messages,
-                return_immediately=True
-            )
+            response = self.client.pull(subscription=self.subscription_path,
+                                        max_messages=self.max_messages,
+                                        return_immediately=True)
             messages = response.received_messages
             self.messages += messages
         except exceptions.DeadlineExceeded:
@@ -103,19 +102,19 @@ class PullManager:
 
 class Subscriber(pubsub_v1.SubscriberClient):
     def subscribe_to_topic(self, subscription_path):
-        manager = PullManager(
-            client=self,
-            subscription_path=subscription_path
-        )
+        manager = PullManager(client=self, subscription_path=subscription_path)
 
         return manager
 
 
-subscriber = Subscriber()
-counter = Counter()
+def run():
+    subscriber = Subscriber()
+    counter = Counter()
+    subscription_path = subscriber.subscription_path(PROJECT_ID, "hackathon")
+    manager = subscriber.subscribe_to_topic(subscription_path)
+    future = manager.open(counter.increment)
+    manager.listen()
 
 
-subscription_path = subscriber.subscription_path(PROJECT_ID, "hackathon")
-manager = subscriber.subscribe_to_topic(subscription_path)
-future = manager.open(counter.increment)
-manager.listen()
+if __name__ == '__main__':
+    run()
