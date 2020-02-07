@@ -2,11 +2,8 @@
 import random
 import logging
 import redis
-from bluecore import bluecore_redis
 from google.api_core import exceptions
 from google.cloud import pubsub_v1
-from flask import Flask  # import flask
-import webapp2
 
 PROJECT_ID = "bluecore-qa"
 
@@ -58,7 +55,7 @@ class Redis:
             raise
 
     def update(self, counters):
-        for k, v in counters:
+        for k, v in counters.items():
             self._update_count(k, v)
 
 
@@ -129,11 +126,14 @@ class PullManager:
         return self.future
 
     def listen(self):
+        import pdb
+        pdb.set_trace()
         print("Listening for messages on {}..\n".format(
             self.subscription_path))
         try:
             self.future.result(timeout=2000)
-        except:
+        except Exception as e:
+            logging.exception('somthing went wrong oops')
             self.future.cancel()
 
     def close(self):
