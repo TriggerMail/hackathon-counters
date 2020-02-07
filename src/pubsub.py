@@ -1,11 +1,9 @@
 #autoformat
 import random
 import logging
-from bluecore import bluecore_redis
+import redis
 from google.api_core import exceptions
 from google.cloud import pubsub_v1
-from flask import Flask  # import flask
-import webapp2
 
 PROJECT_ID = "bluecore-qa"
 
@@ -28,7 +26,8 @@ class Redis:
         self.instance = None
 
     def validate(self):
-        self.instance = bluecore_redis.get_bluecore_redis_instance()
+        # self.instance = bluecore_redis.get_bluecore_redis_instance()
+        self.instance = redis.Redis(host='localhost', port=6379, db=0)
 
     @property
     def queue_name(self):
@@ -39,6 +38,8 @@ class Redis:
             self.instance.incr(redis_key, amount=delta)
             # set expiration only before we send data to bigquery
             # self.instance.expire(key, 100000)
+            # send to bq here
+            print self.instance.keys(), self.instance.values()
         except MasterNotFoundError:
             logging.exception(
                 u"Could not acquire redis master instance to increment redis key {}; rescheduling"
@@ -54,12 +55,12 @@ class Redis:
             raise
 
     def update(self, counters):
-        for k, v in counters:
+        for k, v in counters.items():
             self._update_count(k, v)
 
 
 class Counter:
-    BATCH_SIZE = 10
+    BATCH_SIZE = 3
 
     def __init__(self, pull_manager):
         self.counters = dict()
@@ -125,11 +126,14 @@ class PullManager:
         return self.future
 
     def listen(self):
+        import pdb
+        pdb.set_trace()
         print("Listening for messages on {}..\n".format(
             self.subscription_path))
         try:
             self.future.result(timeout=2000)
-        except:
+        except Exception as e:
+            logging.exception('somthing went wrong oops')
             self.future.cancel()
 
     def close(self):
@@ -163,20 +167,12 @@ class Subscriber(pubsub_v1.SubscriberClient):
 
 def run():
     subscriber = Subscriber()
-    counter = Counter()
     subscription_path = subscriber.subscription_path(PROJECT_ID, "hackathon")
     manager = subscriber.subscribe_to_topic(subscription_path)
+    counter = Counter(manager)
     future = manager.open(counter.increment)
     manager.listen()
 
 
-app = Flask(__name__)  # create an app instance
-
-
-@app.route("/")  # at the end point /
-def hello():  # call method hello
-    return "Hello World!"  # which returns "hello world"
-
-
-if __name__ == "__main__":  # on running python app.py
-    app.run()
+if __name__ == "__main__":
+    run()
