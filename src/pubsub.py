@@ -1,6 +1,7 @@
 #autoformat
 import random
 import logging
+import redis
 from bluecore import bluecore_redis
 from google.api_core import exceptions
 from google.cloud import pubsub_v1
@@ -27,7 +28,8 @@ class Redis:
         self.instance = None
 
     def validate(self):
-        self.instance = bluecore_redis.get_bluecore_redis_instance()
+        # self.instance = bluecore_redis.get_bluecore_redis_instance()
+        self.instance = redis.Redis(host='localhost', port=6379, db=0)
 
     @property
     def queue_name(self):
@@ -38,6 +40,8 @@ class Redis:
             self.instance.incr(redis_key, amount=delta)
             # set expiration only before we send data to bigquery
             # self.instance.expire(key, 100000)
+            # send to bq here
+            print self.instance.keys(), self.instance.values()
         except MasterNotFoundError:
             logging.exception(
                 u"Could not acquire redis master instance to increment redis key {}; rescheduling"
@@ -58,7 +62,7 @@ class Redis:
 
 
 class Counter:
-    BATCH_SIZE = 10
+    BATCH_SIZE = 3
 
     def __init__(self, pull_manager):
         self.counters = dict()
@@ -162,18 +166,12 @@ class Subscriber(pubsub_v1.SubscriberClient):
 
 def run():
     subscriber = Subscriber()
-    counter = Counter()
     subscription_path = subscriber.subscription_path(PROJECT_ID, "hackathon")
     manager = subscriber.subscribe_to_topic(subscription_path)
+    counter = Counter(manager)
     future = manager.open(counter.increment)
     manager.listen()
 
 
-class HelloWebapp2(webapp2.RequestHandler):
-    def get(self):
-        self.response.write('Hello, webapp2!')
-
-
-app = webapp2.WSGIApplication([
-    ('/', HelloWebapp2),
-], debug=True)
+if __name__ == "__main__":
+    run()
