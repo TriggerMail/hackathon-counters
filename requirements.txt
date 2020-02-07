@@ -1,0 +1,11 @@
+Internal libraries included in this source tree
+bluecore_airflow==0.1
+bluecore-common-testing==3.6.9
+bluecore-core==2.1.50
+bluecore-gke==1.0.1
+bluecore-protos==1.0.111
+bluecore-services==3.0.4
+bluecore-validation==1.1
+bluecore-recipe-rules==3.7
+
+redis==2.10.5
