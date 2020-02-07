@@ -2,6 +2,7 @@
 
 from google.api_core import exceptions
 from google.cloud import pubsub_v1
+from flask import Flask  # import flask
 import webapp2
 
 PROJECT_ID = "bluecore-qa"
@@ -117,11 +118,13 @@ def run():
     manager.listen()
 
 
-class HelloWebapp2(webapp2.RequestHandler):
-    def get(self):
-        self.response.write('Hello, webapp2!')
+app = Flask(__name__)  # create an app instance
 
 
-app = webapp2.WSGIApplication([
-    ('/', HelloWebapp2),
-], debug=True)
+@app.route("/")  # at the end point /
+def hello():  # call method hello
+    return "Hello World!"  # which returns "hello world"
+
+
+if __name__ == "__main__":  # on running python app.py
+    app.run()

@@ -27,7 +27,7 @@ spec:
     spec:
       containers:
       - name: hackathon-counters-service
-        image: us.gcr.io/triggeredmail/hackathon-counters:27
+        image: us.gcr.io/triggeredmail/hackathon-counters:28
         env:
         - name: PRPC_TOKEN
           valueFrom:
