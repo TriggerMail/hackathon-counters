@@ -10,16 +10,21 @@ class Counter:
     def __init__(self):
         self.counters = dict()
 
-    def increment(self, namespace, key):
+    def increment(self, message):
+        # used in callback
+        namespace = message.attributes['namespace']
+        key = message.data
         if key in self.counters:
             original = self.counters[key]
             self.counters[key] = original + 1
         else:
             self.counters[key] = 1
 
+        message.ack()
         print 'incremented counters for namespace {} and key {}: {}'.format(namespace, key, self.counters)
 
     def batch_increment(self, received_messages):
+        # can be used when using PullManager.pull
         for message in received_messages:
             namespace = message.message.attributes['namespace']
             key = message.message.data
@@ -29,7 +34,7 @@ class Counter:
                 self.counters[key] = original + 1
             else:
                 self.counters[key] = 1
-            # message.ack()
+            message.ack()
             print 'incremented counters for namespace {} and key {}: {}'.format(namespace, key,
                                                                                 self.counters)
 
@@ -90,9 +95,7 @@ counter = Counter()
 
 
 def callback(message):
-    # counter.increment(message.attributes.namespace, message.data) - throws error
-    # message.ack()
-    return
+    counter.increment(message)
 
 
 subscription_path = subscriber.subscription_path(PROJECT_ID, "hackathon")
@@ -100,7 +103,8 @@ manager = subscriber.subscribe_to_topic(subscription_path)
 future = manager.open(callback)
 
 try:
-    messages = manager.pull()
-    counter.batch_increment(messages)
+    # messages = manager.pull()
+    # counter.batch_increment(messages)
+    future.result(timeout=200)
 except:  # noqa
     future.cancel()
