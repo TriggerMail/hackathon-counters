@@ -5,6 +5,7 @@ import redis
 from bluecore import bluecore_redis
 from google.api_core import exceptions
 from google.cloud import pubsub_v1
+from flask import Flask  # import flask
 import webapp2
 
 PROJECT_ID = "bluecore-qa"
