@@ -18,6 +18,6 @@ RUN pip install --no-cache-dir -r /app/requirements.txt
 FROM gcr.io/distroless/base-debian10:nonroot
 EXPOSE 8080
 
-CMD ["python", "app/main.py"]
+CMD ["python", "app/pubsub.py"]
 
 
