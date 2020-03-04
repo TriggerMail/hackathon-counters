@@ -8,7 +8,7 @@ jobs:
           # This was a key generated in gcloud's bluecore-qa IAM console for circle-ci-image-retrieval@bluecore-qa.iam.gserviceaccount.com
           # this service-account has read access to bluecore-qa: artifacts.bluecore-qa.appspot.com where images are stored.
           password: $GCR_TM_AUTH
-    working_directory: /home/circleci/go/src/github.com/TriggerMail/hackathon-counters
+    working_directory: ~/hackathon-counters
     steps:
       - checkout
       - run:
@@ -22,33 +22,11 @@ jobs:
             echo "$BLUECOREAUTOMATION_PRIVATE_KEY" | base64 --decode > $HOME/.ssh/bluecoreautomation
             chmod 0600 $HOME/.ssh/bluecoreautomation
             ssh-add $HOME/.ssh/bluecoreautomation
-      # - run:
-      #     name: Run go vet (static analysis checks)
-      #     command: go vet ./...
-      # - run:
-      #     name: Run golint (style checks)
-      #     command: |
-      #       (cd /tmp && go get -u golang.org/x/lint/golint)
-      #       golint -set_exit_status ./...
-      # - run:
-      #     name: Check code is formatted and generated API is up to date
-      #     command: |
-      #       # generate the Go OpenAPI client and ensure it is up to date
-      #       make
-      #       go mod tidy
-      #       go fmt ./...
-      #       CHANGED=$(git status --porcelain)
-      #       if [ -n "${CHANGED}" ]; then
-      #           echo "ERROR Some files were changed; run go mod tidy/go fmt/make:" > /dev/stderr
-      #           echo "$CHANGED" > /dev/stderr
-      #           exit 10
-      #       fi
       - run:
           name: Build Docker image using cloudbuild
           command: |
             if [ $CIRCLE_BRANCH == "master" ]; then
-              # download dependencies so we don't need github access in cloudbuild
-              go mod vendor -v
+              # download dependencies so we don't need github access in cloudbuild           
               echo $GCR_TM_AUTH > ${HOME}/gcloud-service-key.json
               gcloud auth activate-service-account --key-file=${HOME}/gcloud-service-key.json
               bluecore --nocheck cloudbuild . --config=cloudbuild.yaml --service-name=hackathon-counters \
