@@ -1,50 +1,62 @@
-version: 2.1
-
-orbs:
-  gcp-cli: circleci/gcp-cli@1.8.3
-
+version: 2
 jobs:
   build:
-    working_directory: ~/hackathon-counters
     docker:
-      - image: circleci/python:3.6.2-stretch-browsers
-        environment:
-          # Disable any of the interactive prompts
-          CLOUDSDK_CORE_DISABLE_PROMPTS: 1
-          DEBIAN_FRONTEND: noninteractive
-          GOOGLE_COMPUTE_ZONE: us-central1-a
-          GOOGLE_PROJECT_ID: triggeredmail
+      - image: $BUILD_CONTAINER_IMAGE
+        auth:
+          username: _json_key
+          # This was a key generated in gcloud's bluecore-qa IAM console for circle-ci-image-retrieval@bluecore-qa.iam.gserviceaccount.com
+          # this service-account has read access to bluecore-qa: artifacts.bluecore-qa.appspot.com where images are stored.
+          password: $GCR_TM_AUTH
+    working_directory: /home/circleci/go/src/github.com/TriggerMail/hackathon-counters
     steps:
       - checkout
-
       - run:
-          name: Install Python deps in a venv
+          name: Export PATH for Deployment / Configure SSH keys
           command: |
-            python3 -m venv venv
-            . venv/bin/activate
-            pip install -r requirements.txt
-
-      - setup_remote_docker
-
+            /home/circleci/devenv/bluecore activate >> $BASH_ENV
+            # Replace the deploy key used to check out code with BluecoreAutomation, which
+            # has permission to check out all repositories
+            # Something (CircleCI's web UI?) replaces newlines with spaces; Use base64 to avoid
+            ssh-add -D
+            echo "$BLUECOREAUTOMATION_PRIVATE_KEY" | base64 --decode > $HOME/.ssh/bluecoreautomation
+            chmod 0600 $HOME/.ssh/bluecoreautomation
+            ssh-add $HOME/.ssh/bluecoreautomation
+      # - run:
+      #     name: Run go vet (static analysis checks)
+      #     command: go vet ./...
+      # - run:
+      #     name: Run golint (style checks)
+      #     command: |
+      #       (cd /tmp && go get -u golang.org/x/lint/golint)
+      #       golint -set_exit_status ./...
+      # - run:
+      #     name: Check code is formatted and generated API is up to date
+      #     command: |
+      #       # generate the Go OpenAPI client and ensure it is up to date
+      #       make
+      #       go mod tidy
+      #       go fmt ./...
+      #       CHANGED=$(git status --porcelain)
+      #       if [ -n "${CHANGED}" ]; then
+      #           echo "ERROR Some files were changed; run go mod tidy/go fmt/make:" > /dev/stderr
+      #           echo "$CHANGED" > /dev/stderr
+      #           exit 10
+      #       fi
       - run:
-          name: Build Docker image
+          name: Build Docker image using cloudbuild
           command: |
-            docker build -t app .
-
-      # Install but don't authenticate the Google Cloud tools
-      - gcp-cli/install
-      - gcp-cli/initialize:
-          gcloud-service-key: GCLOUD_ACCOUNT_CRED
-
-      - run: |
-          echo $GCLOUD_ACCOUNT_CRED > gcr_key.json
-          cat gcr_key.json | docker login -u _json_key --password-stdin https://us.gcr.io
-
-      - run: |
-          echo '---'
-          echo 'Pushing the docker images ...'
-          echo '---'
-          export IMAGE_VERSION_TAG=us.gcr.io/triggeredmail/hackathon-counters:${CIRCLE_BUILD_NUM}
-          echo $IMAGE_VERSION_TAG
-          docker tag app $IMAGE_VERSION_TAG
-          docker push $IMAGE_VERSION_TAG
+            if [ $CIRCLE_BRANCH == "master" ]; then
+              # download dependencies so we don't need github access in cloudbuild
+              go mod vendor -v
+              echo $GCR_TM_AUTH > ${HOME}/gcloud-service-key.json
+              gcloud auth activate-service-account --key-file=${HOME}/gcloud-service-key.json
+              bluecore --nocheck cloudbuild . --config=cloudbuild.yaml --service-name=hackathon-counters \
+                --tag $CIRCLE_SHA1 --gcloud-key-path $HOME/gcloud-service-key.json
+            fi
+workflows:
+  version: 2
+  build_and_test:
+    jobs:
+      - build:
+          context: build-global
