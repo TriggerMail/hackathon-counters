@@ -1,6 +1,6 @@
 FROM python:3.7
 
-WORKDIR /hello-python
+WORKDIR /hackathon-counters
 COPY ./ ./
 RUN pip install -r app/requirements.txt
 
