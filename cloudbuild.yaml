@@ -1,29 +1,41 @@
-steps:
-- name: 'gcr.io/cloud-builders/docker'
-  args: 
-    [
-      ‘build’,
-      ‘--tag’, ‘$_REPO/$PROJECT_ID/$_DOCKER_TAG_DATE_COMMIT’,
-      ‘--tag’, ‘$_REPO/$PROJECT_ID/$_DOCKER_TAG_COMMIT’,
-      ‘--build-arg’, ‘PIP_EXTRA_INDEX_URL=$_PIP_EXTRA_INDEX_URL’,
-      ‘.’,
-    ]
- - name: 'gcr.io/cloud-builders/docker'
-  args: [
-    'build',
-    '--tag', '$_REPO/$PROJECT_ID/py3-$_DOCKER_TAG_DATE_COMMIT',
-    '--tag', '$_REPO/$PROJECT_ID/py3-$_DOCKER_TAG_COMMIT',
-    '--build-arg', 'PIP_EXTRA_INDEX_URL=$_PIP_EXTRA_INDEX_URL',
-    '--target', 'python3_run',
-    '.',
-  ]
-
-  # image is pushed is pushed to Container Registry
-- name: 'gcr.io/cloud-builders/docker'
-  args: ['push', '$_REPO/$PROJECT_ID/$_SERVICE']
-- name: 'gcr.io/cloud-builders/gcloud'
-  args: ['container', 'images', 'add-tag', '$_REPO/$PROJECT_ID/$_DOCKER_TAG_DATE_COMMIT', '$_REPO/$PROJECT_ID/$_DOCKER_TAG_COMMIT', '-q']
-# To avoid giving general 'Viewer' permission to the service account that builds the image
-# we create a storage bucket and manage permissions on that storage bucket
-# https://github.com/GoogleCloudPlatform/cloud-builders/issues/120
-logsBucket: 'gs://container_build_logs_tm'
+--- 
+logsBucket: "gs://container_build_logs_tm"
+steps: 
+  - 
+    args: 
+      - build
+      - "--tag"
+      - $_REPO/$PROJECT_ID/$_DOCKER_TAG_DATE_COMMIT
+      - "--tag"
+      - $_REPO/$PROJECT_ID/$_DOCKER_TAG_COMMIT
+      - "--build-arg"
+      - PIP_EXTRA_INDEX_URL=$_PIP_EXTRA_INDEX_URL
+      - "."
+    name: gcr.io/cloud-builders/docker
+  - 
+    args: 
+      - build
+      - "--tag"
+      - $_REPO/$PROJECT_ID/py3-$_DOCKER_TAG_DATE_COMMIT
+      - "--tag"
+      - $_REPO/$PROJECT_ID/py3-$_DOCKER_TAG_COMMIT
+      - "--build-arg"
+      - PIP_EXTRA_INDEX_URL=$_PIP_EXTRA_INDEX_URL
+      - "--target"
+      - python3_run
+      - "."
+    name: gcr.io/cloud-builders/docker
+  - 
+    args: 
+      - push
+      - $_REPO/$PROJECT_ID/$_SERVICE
+    name: gcr.io/cloud-builders/docker
+  - 
+    args: 
+      - container
+      - images
+      - add-tag
+      - $_REPO/$PROJECT_ID/$_DOCKER_TAG_DATE_COMMIT
+      - $_REPO/$PROJECT_ID/$_DOCKER_TAG_COMMIT
+      - "-q"
+    name: gcr.io/cloud-builders/gcloud
