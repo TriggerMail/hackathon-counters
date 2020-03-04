@@ -1,10 +1,23 @@
 steps:
 - name: 'gcr.io/cloud-builders/docker'
-# Use substitute variables to pass in docker tags, repo, and service
-# https://cloud.google.com/container-builder/docs/configuring-builds/substitute-variable-values
-# Note that PIP_EXTRA_INDEX_URL is not needed for go builds, but in order
-# for it to work with the cloudbuil tool, we need to include it
-  args: ['build', '-t', '$_REPO/$PROJECT_ID/$_DOCKER_TAG_DATE_COMMIT', '--build-arg', 'PIP_EXTRA_INDEX_URL=$_PIP_EXTRA_INDEX_URL', '.', ]
+  args: 
+    [
+      ‘build’,
+      ‘--tag’, ‘$_REPO/$PROJECT_ID/$_DOCKER_TAG_DATE_COMMIT’,
+      ‘--tag’, ‘$_REPO/$PROJECT_ID/$_DOCKER_TAG_COMMIT’,
+      ‘--build-arg’, ‘PIP_EXTRA_INDEX_URL=$_PIP_EXTRA_INDEX_URL’,
+      ‘.’,
+    ]
+ - name: 'gcr.io/cloud-builders/docker'
+  args: [
+    'build',
+    '--tag', '$_REPO/$PROJECT_ID/py3-$_DOCKER_TAG_DATE_COMMIT',
+    '--tag', '$_REPO/$PROJECT_ID/py3-$_DOCKER_TAG_COMMIT',
+    '--build-arg', 'PIP_EXTRA_INDEX_URL=$_PIP_EXTRA_INDEX_URL',
+    '--target', 'python3_run',
+    '.',
+  ]
+
   # image is pushed is pushed to Container Registry
 - name: 'gcr.io/cloud-builders/docker'
   args: ['push', '$_REPO/$PROJECT_ID/$_SERVICE']
